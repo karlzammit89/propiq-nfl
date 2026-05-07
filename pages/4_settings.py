@@ -1,104 +1,119 @@
-"""Page 4 — API Settings & Documentation"""
+"""Page 4 — Data Sources & Settings"""
 import streamlit as st
+from utils.api import fetch_espn_injuries, fetch_rotowire_inactives
 
-st.markdown("## ⚙️ API Settings")
-st.caption("Configure your API keys for live data. All keys are stored in session only — never saved.")
+st.markdown("## ⚙️ Data Sources & Settings")
+st.caption("PropIQ runs 100% free — no API keys, no quotas, no cost ever")
 
-# ── API Key Inputs ────────────────────────────────────────────────────────────
-with st.form("api_form"):
-    st.markdown("### 🔑 API Keys")
+# ── Live status check ─────────────────────────────────────────────────────────
+st.markdown("### 📡 Live Source Status")
+st.caption("Checking each source right now…")
 
-    st.markdown("**The Odds API** — Live prop odds from DraftKings, FanDuel, BetMGM, Caesars, PointsBet")
-    st.markdown("Get your free key at [the-odds-api.com](https://the-odds-api.com) — 500 requests/month free")
-    odds_key = st.text_input(
-        "Odds API Key",
-        value=st.session_state.api_keys.get("odds_api", ""),
-        type="password",
-        placeholder="Enter your Odds API key...",
-    )
+col1, col2, col3, col4 = st.columns(4)
 
-    st.divider()
+with col1:
+    with st.spinner("ESPN…"):
+        espn = fetch_espn_injuries()
+    if espn:
+        st.success(f"✅ ESPN API\n\n{len(espn)} players in injury report")
+    else:
+        st.warning("⚠️ ESPN API\n\nNo data returned — fallback active")
 
-    st.markdown("**Sportradar NFL API** — Live schedules, defense rankings, snap counts")
-    st.markdown("Trial access at [developer.sportradar.com](https://developer.sportradar.com) — 1,000 req/month free")
-    sr_key = st.text_input(
-        "Sportradar API Key",
-        value=st.session_state.api_keys.get("sportradar", ""),
-        type="password",
-        placeholder="Enter your Sportradar API key...",
-    )
+with col2:
+    with st.spinner("RotoWire…"):
+        roto = fetch_rotowire_inactives()
+    if roto:
+        st.success(f"✅ RotoWire\n\n{len(roto)} players flagged")
+    else:
+        st.info("ℹ️ RotoWire\n\nNo inactives yet (mid-week is normal)")
 
-    st.divider()
+with col3:
+    import requests
+    try:
+        r = requests.get("https://api.open-meteo.com/v1/forecast?latitude=40&longitude=-74&current=temperature_2m", timeout=5)
+        r.raise_for_status()
+        st.success("✅ Open-Meteo\n\nWeather live")
+    except Exception:
+        st.warning("⚠️ Open-Meteo\n\nUsing fallback weather")
 
-    st.markdown("**FantasyLife API** — Injury reports, weekly snap counts, target share data")
-    st.markdown("Get access at [fantasylife.com](https://fantasylife.com)")
-    fl_key = st.text_input(
-        "FantasyLife API Key",
-        value=st.session_state.api_keys.get("fantasy_life", ""),
-        type="password",
-        placeholder="Enter your FantasyLife API key...",
-    )
-
-    submitted = st.form_submit_button("💾 Save Keys", use_container_width=True)
-    if submitted:
-        st.session_state.api_keys = {
-            "odds_api":    odds_key,
-            "sportradar":  sr_key,
-            "fantasy_life": fl_key,
-        }
-        # Clear caches to force fresh pulls
-        st.cache_data.clear()
-        st.success("✅ API keys saved. Caches cleared — next generation will pull fresh data.")
-
-# ── Status ────────────────────────────────────────────────────────────────────
-st.divider()
-st.markdown("### 📡 Data Source Status")
-
-keys = st.session_state.api_keys
-statuses = {
-    "Odds API (Live Lines)":       "🟢 Connected" if keys.get("odds_api") else "🟡 Using modelled odds",
-    "Sportradar (Schedule/Stats)": "🟢 Connected" if keys.get("sportradar") else "🟡 Using 2024 fallback data",
-    "FantasyLife (Injuries)":      "🟢 Connected" if keys.get("fantasy_life") else "🟡 Using ESPN public feed + fallback",
-    "Open-Meteo (Weather)":        "🟢 Always active — no key required",
-}
-
-for source, status in statuses.items():
-    st.markdown(f"**{source}:** {status}")
+with col4:
+    try:
+        r2 = requests.get("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard", timeout=5)
+        r2.raise_for_status()
+        st.success("✅ ESPN Scoreboard\n\nSchedule & odds live")
+    except Exception:
+        st.warning("⚠️ ESPN Scoreboard\n\nUsing fallback schedule")
 
 st.divider()
 
-# ── .env instructions ─────────────────────────────────────────────────────────
-st.markdown("### 🔧 Production Setup (`.env` file)")
+# ── Source details ────────────────────────────────────────────────────────────
+st.markdown("### 🗂️ All Data Sources")
 st.markdown("""
-For persistent keys across sessions, create a `.env` file in the project root:
+| Source | Data provided | Refresh | Cost |
+|--------|--------------|---------|------|
+| **ESPN public API** | Schedules, matchups, defense rankings, injuries, embedded odds | 15–60 min | Free forever |
+| **RotoWire inactives** | Game-day confirmed inactive/active status | 10 min | Free (scraper) |
+| **RotoWire lineups** | Projected starters, mid-week status | 10 min | Free (scraper) |
+| **Open-Meteo** | Live weather for outdoor stadiums | 30 min | Free forever, no key |
+| **PropIQ engine** | Prop projections, fair odds, correlations | Real-time | Free forever |
+| **PropIQ fallback** | 2024 season baselines, snap counts | Each deploy | Built-in |
 
-```env
-ODDS_API_KEY=your_odds_api_key_here
-SPORTRADAR_KEY=your_sportradar_key_here
-FANTASYLIFE_KEY=your_fantasylife_key_here
-```
-
-Then load it in your shell before running:
-```bash
-export $(cat .env | xargs)
-streamlit run app.py
-```
-
-Or update `utils/api.py` to use `os.getenv()` for each key.
+**No API keys needed. No quotas. No credit card. No expiry date.**
 """)
 
 st.divider()
-st.markdown("### 📋 Auto-Update Cadence")
-st.markdown("""
-| Data Source | Cache TTL | Updates When |
-|-------------|-----------|--------------|
-| Live Odds (Odds API) | **2 minutes** | Odds move, line changes |
-| Schedules (Sportradar) | **1 hour** | Weekly when schedule is set |
-| Defense Stats (Sportradar) | **1 hour** | After each game |
-| Injury Report | **15 minutes** | NFL releases Wed/Thu/Fri/Sat reports |
-| Snap Counts | **1 hour** | After each game day |
-| Weather (Open-Meteo) | **30 min** | Automatically every load |
 
-PropIQ uses Streamlit's `@st.cache_data(ttl=...)` to auto-refresh all data
-at the cadences above — just keep the app running and it stays current.
+# ── Cache controls ────────────────────────────────────────────────────────────
+st.markdown("### 🔄 Cache Controls")
+st.caption("Data is cached to avoid hitting ESPN/RotoWire too frequently. Clear here if you want a fresh pull.")
+
+c1, c2, c3 = st.columns(3)
+with c1:
+    if st.button("🗑 Clear all caches", use_container_width=True):
+        st.cache_data.clear()
+        st.success("All caches cleared — next page load pulls fresh data.")
+with c2:
+    if st.button("🔄 Refresh injury data", use_container_width=True):
+        fetch_espn_injuries.clear()
+        fetch_rotowire_inactives.clear()
+        st.success("Injury caches cleared.")
+with c3:
+    if st.button("🔄 Refresh schedules", use_container_width=True):
+        from utils.api import fetch_schedule, fetch_defense_ratings
+        fetch_schedule.clear()
+        fetch_defense_ratings.clear()
+        st.success("Schedule & defense caches cleared.")
+
+st.divider()
+
+# ── Cache TTL reference ───────────────────────────────────────────────────────
+st.markdown("### ⏱ Auto-Refresh Schedule")
+st.markdown("""
+| Data | Cache TTL | Notes |
+|------|-----------|-------|
+| Live odds / ESPN scoreboard | **2 min** | Fastest refresh |
+| RotoWire inactives | **10 min** | Game-day inactives post ~90 min before kickoff |
+| ESPN injury report | **15 min** | Aligns with NFL Wed/Thu/Fri/Sat report cycle |
+| Schedules & defense stats | **1 hour** | Stable within week; updates after each game |
+| Snap counts | **1 hour** | Updates post-game via fallback |
+| Weather | **30 min** | Open-Meteo free refresh |
+
+Streamlit's `@st.cache_data(ttl=N)` handles all of this automatically — the app stays current as long as it's running.
+""")
+
+st.divider()
+
+# ── Deployment note ───────────────────────────────────────────────────────────
+st.markdown("### 🚀 Keeping the App Alive (Streamlit Free Tier)")
+st.markdown("""
+Streamlit Community Cloud's free tier sleeps apps after **7 days of no visits**.
+To keep PropIQ always awake during the NFL season, use a free uptime monitor:
+
+1. Go to [uptimerobot.com](https://uptimerobot.com) and create a free account
+2. Click **"Add New Monitor"**
+3. Set type to **HTTP(S)**, paste your Streamlit app URL, interval **5 minutes**
+4. Click **"Create Monitor"**
+
+UptimeRobot pings your app every 5 minutes for free — Streamlit never sleeps it.
+This completely solves the inactivity problem at zero cost.
 """)
