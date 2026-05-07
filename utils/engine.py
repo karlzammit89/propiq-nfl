@@ -6,7 +6,6 @@ Multi-model prop projection with normal distribution probability math.
 import math
 from dataclasses import dataclass, field
 from typing import Optional
-from utils.player_db import PLAYER_DB
 
 
 # ── Probability math ──────────────────────────────────────────────────────────
@@ -201,7 +200,11 @@ def compute_props(
     """
     Core projection engine. Returns list of PropResult objects.
     """
-    st = PLAYER_DB.get(player_id)
+    # In v3, player_id is the full player dict from live ESPN roster
+    if isinstance(player_id, dict):
+        st = player_id
+    else:
+        return []   # static lookup no longer used
     if not st:
         return []
 
@@ -532,3 +535,6 @@ def compute_parlay(legs: list) -> dict:
 
 # Import for correlation engine
 from utils.fallback_data import FALLBACK_SCHEDULES
+
+# Note: In v3, PLAYER_DB is loaded live from ESPN via utils/roster.py
+# and stored in st.session_state.live_player_db — not imported statically.
