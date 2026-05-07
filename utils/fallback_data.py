@@ -1,8 +1,18 @@
 """
-Fallback 2024 NFL season data.
-Used when API keys are absent or quota is hit.
-All values are 2024 season week-15 estimates.
+Fallback 2024 NFL season data + ESPN team ID mapping.
+Used when live API calls fail or return no data.
 """
+
+# ESPN internal team IDs (used for their public API endpoints)
+ESPN_TEAM_IDS = {
+    "ARI": 22, "ATL": 1,  "BAL": 33, "BUF": 2,  "CAR": 29,
+    "CHI": 3,  "CIN": 4,  "CLE": 5,  "DAL": 6,  "DEN": 7,
+    "DET": 8,  "GB":  9,  "HOU": 34, "IND": 11, "JAX": 30,
+    "KC":  12, "LAC": 24, "LAR": 14, "LV":  13, "MIA": 15,
+    "MIN": 16, "NE":  17, "NO":  18, "NYG": 19, "NYJ": 20,
+    "PHI": 21, "PIT": 23, "SF":  25, "SEA": 26, "TB":  27,
+    "TEN": 10, "WAS": 28,
+}
 
 FALLBACK_SCHEDULES = {
     "KC":  {"opp":"LV",  "home":True,  "stadium":"Arrowhead Stadium",         "surface":"Grass", "weather":"Clear 52°F 8mph",         "ou":44.5, "spread":-6.5},
